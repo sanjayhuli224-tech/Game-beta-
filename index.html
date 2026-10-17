@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>Indian Open World</title>
+<link rel="stylesheet" href="style.css">
+<script type="importmap">
+{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js"}}
+</script>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="hud">
+  <div id="speed"><span id="spd">0</span><small>km/h</small><em id="gear">D</em></div>
+  <div id="top">
+    <button id="pauseBtn" aria-label="Pause">&#10074;&#10074;</button>
+    <button id="restartBtn" aria-label="Restart">&#8635;</button>
+  </div>
+</div>
+
+<div id="touch">
+  <div class="grp left">
+    <button data-btn="left">&#9664;</button>
+    <button data-btn="right">&#9654;</button>
+  </div>
+  <div class="grp right">
+    <button data-btn="brake">BRAKE<br><small>REVERSE</small></button>
+    <button data-btn="gas">GAS</button>
+  </div>
+</div>
+
+<div id="menu">
+  <h1>Indian Open World</h1>
+  <p id="msg">Loading&hellip;</p>
+  <button id="playBtn" disabled>Play</button>
+  <button id="menuRestart">Restart</button>
+  <p class="help">PC: W/&uarr; gas &middot; S/&darr; brake/reverse &middot; A/D or &larr;/&rarr; steer &middot; Space handbrake &middot; P pause &middot; R restart<br>
+  Phone: use the on-screen buttons (landscape works best). Drive on the left!</p>
+</div>
+
+<script>
+function showErr(m){var e=document.getElementById('msg');if(e)e.textContent='Error: '+m;}
+addEventListener('error',function(e){showErr(e.message)});
+addEventListener('unhandledrejection',function(e){showErr(e.reason&&e.reason.message||e.reason)});
+</script>
+<script type="module" src="main.js"></script>
+</body>
+</html>

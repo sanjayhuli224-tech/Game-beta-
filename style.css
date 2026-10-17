@@ -1,0 +1,26 @@
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;-webkit-user-select:none;user-select:none}
+html,body{margin:0;height:100%;overflow:hidden;background:#cfe0e8;font-family:system-ui,Arial,sans-serif;touch-action:none}
+#c{position:fixed;inset:0;width:100%;height:100%;display:block}
+#hud{position:fixed;inset:0;pointer-events:none;color:#fff;text-shadow:0 1px 4px #000}
+#speed{position:absolute;left:50%;transform:translateX(-50%);top:max(10px,env(safe-area-inset-top));text-align:center;background:rgba(0,0,0,.35);border-radius:14px;padding:6px 18px}
+#spd{font-size:40px;font-weight:700;font-variant-numeric:tabular-nums}
+#speed small{font-size:13px;margin-left:4px}
+#gear{display:block;font-style:normal;font-size:12px;opacity:.8}
+#top{position:absolute;right:max(10px,env(safe-area-inset-right));top:max(10px,env(safe-area-inset-top));display:flex;gap:8px;pointer-events:auto}
+#top button{width:46px;height:46px;border-radius:50%;border:0;background:rgba(0,0,0,.4);color:#fff;font-size:20px}
+#touch{display:none;position:fixed;inset:0;pointer-events:none}
+@media (pointer:coarse){#touch{display:block}}
+.grp{position:absolute;bottom:max(18px,env(safe-area-inset-bottom));display:flex;gap:14px;pointer-events:none}
+.grp.left{left:max(18px,env(safe-area-inset-left))}
+.grp.right{right:max(18px,env(safe-area-inset-right))}
+.grp button{pointer-events:auto;touch-action:none;width:86px;height:86px;border-radius:50%;border:2px solid rgba(255,255,255,.7);background:rgba(0,0,0,.35);color:#fff;font-size:17px;font-weight:700}
+.grp button small{font-size:9px;font-weight:400}
+.grp button.on{background:rgba(255,160,0,.7)}
+[data-btn=gas]{width:100px!important;height:100px!important}
+#menu{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;background:rgba(10,20,30,.72);color:#fff;text-align:center;padding:20px;z-index:5}
+#menu.hidden{display:none}
+#menu h1{margin:0;font-size:clamp(28px,6vw,48px);color:#ffb347}
+#menu button{padding:14px 40px;border-radius:30px;border:0;font-size:18px;font-weight:700;background:#ff9933;color:#111}
+#menu button:disabled{opacity:.4}
+#menuRestart{background:#ddd!important}
+.help{font-size:13px;opacity:.85;max-width:520px;line-height:1.5}
