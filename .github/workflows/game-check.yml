@@ -1,0 +1,22 @@
+name: Game Code Check
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Get game files
+        uses: actions/checkout@v4
+
+      - name: Check JavaScript syntax
+        run: |
+          node --check main.js
+          node --check car.js
+          node --check controls.js
+          node --check world.js
