@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { createWorld } from './world.js';
-import { Car } from './car.js';
+import { Car, TrafficCar, PoliceCar, Helicopter } from './car.js';
 import { Controls } from './controls.js';
 
 const $ = (id) => document.getElementById(id);
@@ -17,14 +17,13 @@ renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 const scene = new THREE.Scene();
 const SUN_DIR = new THREE.Vector3(60, 90, 40).normalize();
 
-// ---- Daytime sky: painted equirect (gradient, clouds, sun glow) used as background AND for car reflections ----
 function makeSky() {
   const W = 512, H = 256, cv = document.createElement('canvas'); cv.width = W; cv.height = H;
   const x = cv.getContext('2d'), g = x.createLinearGradient(0, 0, 0, H);
   [[0, '#2f6fb8'], [0.22, '#5b9ad4'], [0.42, '#a6cde6'], [0.5, '#e4eef2'], [0.56, '#cfd8d2'], [1, '#7a8068']].forEach(([s, c]) => g.addColorStop(s, c));
   x.fillStyle = g; x.fillRect(0, 0, W, H);
   let s = 7; const r = () => ((s = (s * 1664525 + 1013904223) >>> 0) / 4294967296);
-  for (let i = 0; i < 18; i++) {                        // soft clouds
+  for (let i = 0; i < 18; i++) {
     const cx = r() * W, cy = 25 + r() * 85, rad = 14 + r() * 26, gr = x.createRadialGradient(0, 0, 0, 0, 0, rad);
     gr.addColorStop(0, 'rgba(255,255,255,0.55)'); gr.addColorStop(1, 'rgba(255,255,255,0)');
     x.save(); x.translate(cx, cy); x.scale(2.6, 1); x.fillStyle = gr; x.beginPath(); x.arc(0, 0, rad, 0, 6.3); x.fill(); x.restore();
@@ -56,6 +55,17 @@ const world = createWorld(scene, low);
 const car = new Car(scene, world, low, env);
 const controls = new Controls();
 
+const trafficCars = [
+  new TrafficCar(scene, world, low, env, 0x1f9d55, 3.4, 19, world.N * 0.15),
+  new TrafficCar(scene, world, low, env, 0xef4444, -3.4, 17, world.N * 0.32),
+  new TrafficCar(scene, world, low, env, 0xf59e0b, 3.8, 21, world.N * 0.50),
+  new TrafficCar(scene, world, low, env, 0x8b5cf6, -3.8, 16, world.N * 0.68),
+  new TrafficCar(scene, world, low, env, 0x06b6d4, 3.2, 18, world.N * 0.82),
+  new TrafficCar(scene, world, low, env, 0xf97316, -3.2, 20, world.N * 0.94)
+];
+const police = new PoliceCar(scene, world, low, env, 0, 24);
+const helicopter = new Helicopter(scene, world, low);
+
 let paused = true, snapCam = true;
 function resize() {
   renderer.setSize(innerWidth, innerHeight, false);
@@ -63,12 +73,17 @@ function resize() {
 }
 addEventListener('resize', resize); resize();
 
+function resetNpcs() {
+  trafficCars.forEach((npc) => npc.reset());
+  police.reset();
+  helicopter.reset();
+}
 function setPaused(p) {
   paused = p; $('menu').classList.toggle('hidden', !p);
   $('playBtn').textContent = 'Resume';
   if (!p && low) { document.documentElement.requestFullscreen?.().catch(() => {}); screen.orientation?.lock?.('landscape').catch(() => {}); }
 }
-function restart() { car.reset(); snapCam = true; setPaused(false); }
+function restart() { car.reset(); resetNpcs(); snapCam = true; setPaused(false); }
 $('playBtn').onclick = () => setPaused(false);
 $('pauseBtn').onclick = () => setPaused(true);
 $('restartBtn').onclick = restart;
@@ -77,7 +92,6 @@ controls.onPause = () => setPaused(!paused);
 controls.onRestart = restart;
 document.addEventListener('visibilitychange', () => { if (document.hidden) setPaused(true); });
 
-// ---- Chase camera: lagged heading (shows car's side in turns), speed-based distance/FOV, subtle speed + rough-road shake ----
 let camH = 0; const camBase = new THREE.Vector3();
 function followCamera(dt, t) {
   if (snapCam) { camH = car.h; }
@@ -104,7 +118,9 @@ function loop(now) {
   if (!paused) {
     car.update(dt, controls);
     car.setBraking(controls.brake && car.v > 0.3);
-    // adaptive quality: lower resolution if frames stay slow
+    trafficCars.forEach((npc) => npc.update(dt));
+    police.update(dt, car);
+    helicopter.update(dt, car);
     slow = dt > 0.036 ? slow + dt : Math.max(0, slow - dt);
     if (slow > 2 && pixelRatio > 0.7) { pixelRatio -= 0.15; renderer.setPixelRatio(pixelRatio); resize(); slow = 0; }
     const s = Math.round(car.kmh);
@@ -112,7 +128,7 @@ function loop(now) {
     $('gear').textContent = car.v < -0.3 ? 'R' : 'D';
   }
   followCamera(dt, now / 1000);
-  world.update(car.x, car.z);   // hide far vegetation chunks
+  world.update(car.x, car.z);
   renderer.render(scene, camera);
 }
 
