@@ -1,7 +1,5 @@
 import * as THREE from 'three';
 
-// Lightweight procedural traffic and pursuit vehicles. Keeping these as native Three.js
-// geometry avoids external asset downloads and works with the project's mobile build.
 const material = (color, options = {}) => new THREE.MeshStandardMaterial({ color, roughness: 0.52, metalness: 0.2, ...options });
 
 function makeSedan(color, low) {
@@ -17,13 +15,11 @@ function makeSedan(color, low) {
   const box = (w, h, d, mat, x, y, z, group = body) => {
     const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat); m.position.set(x, y, z); m.castShadow = !low; group.add(m); return m;
   };
-  // Lower shell, hood, trunk and a narrower cabin give a recognizable sedan silhouette.
   box(1.82, 0.53, 3.75, paint, 0, 0.72, -0.02);
   box(1.73, 0.2, 1.15, paint, 0, 0.99, 1.28);
   box(1.68, 0.2, 0.92, paint, 0, 0.96, -1.42);
   box(1.48, 0.56, 1.82, glass, 0, 1.28, -0.03);
   box(1.52, 0.09, 1.86, paint, 0, 1.57, -0.03);
-  // Window pillars, sills, bumpers, mirrors, handles, front/rear lamps.
   for (const side of [-1, 1]) {
     box(0.055, 0.5, 0.07, paint, side * 0.77, 1.29, 0.57);
     box(0.055, 0.5, 0.07, paint, side * 0.77, 1.29, -0.62);
@@ -49,31 +45,32 @@ function makeSedan(color, low) {
 }
 
 export class TrafficCar {
-  constructor(scene, world, low, env, color = 0x2f7cf6, laneOffset = 3.1, speed = 16, startIndex = 0) {
-    this.world = world; this.low = low; this.laneOffset = laneOffset; this.speed = speed;
+  constructor(scene, world, low, env, color = 0x2f7cf6, laneOffset = 3.1, speed = 16, startIndex = 0, direction = 1) {
+    this.world = world; this.low = low; this.laneOffset = laneOffset; this.speed = speed; this.direction = direction;
     this.t = startIndex; this.spin = 0;
     const model = makeSedan(color, low); this.group = model.root; this.body = model.body; this.wheels = model.wheels;
     scene.add(this.group); this.reset();
   }
   place() {
-    const i = Math.floor(this.t) % this.world.N;
+    const i = ((Math.floor(this.t) % this.world.N) + this.world.N) % this.world.N;
     const p = this.world.pts[i], tangent = this.world.tan[i];
+    const dirOffset = this.direction < 0 ? Math.PI : 0;
     this.x = p.x + tangent.z * this.laneOffset; this.z = p.z - tangent.x * this.laneOffset;
-    this.h = Math.atan2(tangent.x, tangent.z);
+    this.h = Math.atan2(tangent.x, tangent.z) + dirOffset;
     this.y = this.world.heightAt(this.x, this.z) + 0.12;
     this.group.position.set(this.x, this.y, this.z); this.group.rotation.set(0, this.h, 0);
     for (const w of this.wheels) w.rotation.z = this.spin;
   }
   reset() { this.t = ((this.t % this.world.N) + this.world.N) % this.world.N; this.place(); }
   update(dt) {
-    this.t = (this.t + this.speed * dt / 3.8) % this.world.N;
+    this.t = (this.t + this.direction * this.speed * dt / 3.8 + this.world.N) % this.world.N;
     this.spin += this.speed * dt / 0.34; this.place();
   }
 }
 
 export class PoliceCar extends TrafficCar {
-  constructor(scene, world, low, env, laneOffset = 0, speed = 23) {
-    super(scene, world, low, env, 0x14283e, laneOffset, speed, world.N - 18);
+  constructor(scene, world, low, env, laneOffset = 0, speed = 23, direction = 1) {
+    super(scene, world, low, env, 0x14283e, laneOffset, speed, world.N - 18, direction);
     this.flash = 0;
     const white = material(0xf0f2f4, { roughness: 0.36, metalness: 0.15 });
     const blue = new THREE.MeshStandardMaterial({ color: 0x1478ed, emissive: 0x063e9b, emissiveIntensity: 0.8 });
@@ -91,7 +88,6 @@ export class PoliceCar extends TrafficCar {
     this.blueLamp = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.12, 0.22), blue);
     this.redLamp.position.set(-0.2, 1.72, -0.05); this.blueLamp.position.set(0.2, 1.72, -0.05);
     this.body.add(this.redLamp, this.blueLamp);
-    // Small roof aerial and rear-window patrol marking.
     const antenna = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.018, 0.42, 6), material(0x17191b));
     antenna.position.set(0, 1.82, -0.85); antenna.rotation.z = -0.15; this.body.add(antenna);
   }
@@ -101,12 +97,11 @@ export class PoliceCar extends TrafficCar {
       const delta = ((nearest.i - this.t + this.world.N) % this.world.N);
       const signed = delta > this.world.N / 2 ? delta - this.world.N : delta;
       const gapMeters = signed * 3.8;
-      // Drive around the road loop toward the player; ease the speed instead of teleporting.
       this.speed += (Math.max(20, Math.min(37, 22 + Math.abs(gapMeters) * 0.018)) - this.speed) * Math.min(1, dt * 0.8);
-      this.t = (this.t + this.speed * dt / 3.8 + Math.max(-1.5, Math.min(1.5, signed * 0.025))) % this.world.N;
+      this.t = (this.t + this.direction * this.speed * dt / 3.8 + this.world.N) % this.world.N;
       const d = Math.hypot(target.x - this.x, target.z - this.z);
       this.laneOffset = d < 12 ? 2.6 : Math.sin(this.t * 0.18) * 0.45;
-    } else this.t = (this.t + this.speed * dt / 3.8) % this.world.N;
+    } else this.t = (this.t + this.direction * this.speed * dt / 3.8 + this.world.N) % this.world.N;
     this.spin += this.speed * dt / 0.34;
     this.place();
     this.flash += dt * 13;
@@ -131,7 +126,6 @@ export class Helicopter {
     };
     mesh(new THREE.SphereGeometry(1, 24, 16), hull, 0, 0.95, 0).scale.set(0.95, 0.68, 1.75);
     mesh(new THREE.SphereGeometry(1, 24, 16), glass, 0, 1.12, 0.88).scale.set(0.78, 0.52, 0.82);
-    // Side cabin windows, doors, skids and a tapered tail boom.
     for (const side of [-1, 1]) {
       mesh(new THREE.BoxGeometry(0.035, 0.42, 0.72), glass, side * 0.82, 1.15, -0.38);
       mesh(new THREE.CylinderGeometry(0.045, 0.07, 1.5, 10), trim, side * 0.65, 0.15, -0.2).rotation.z = Math.PI / 2;
@@ -175,3 +169,14 @@ export class Helicopter {
     this.searchlight.target.position.set(target.x - this.group.position.x, -this.group.position.y, target.z - this.group.position.z);
   }
 }
+
+export const spawnTraffic = (scene, world, low, env, count = 8) => {
+  const cars = [];
+  for (let i = 0; i < count; i++) {
+    const dir = i % 2 === 0 ? 1 : -1;
+    const lane = dir > 0 ? 3.1 + (i % 2) * 0.4 : -3.1 - (i % 2) * 0.4;
+    const speed = 14 + (i % 5) * 2.8;
+    cars.push(new TrafficCar(scene, world, low, env, 0x2d9cdb + (i * 1009) % 0x7a7a7a, lane, speed, 12 + i * 5, dir));
+  }
+  return cars;
+};
