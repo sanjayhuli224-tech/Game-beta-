@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { createWorld } from './world.js';
-import { Car, TrafficCar, PoliceCar, Helicopter } from './car.js';
-import { improveNpcLooks } from './npc-visuals.js';
+import { Car } from './car.js';
+import { TrafficCar, PoliceCar, Helicopter } from './npc.js';
 import { Controls } from './controls.js';
 
 const $ = (id) => document.getElementById(id);
@@ -56,20 +56,21 @@ const world = createWorld(scene, low);
 const car = new Car(scene, world, low, env);
 const controls = new Controls();
 
+// Keep several vehicles close to the starting stretch so the road feels populated immediately.
 const trafficCars = [
-  new TrafficCar(scene, world, low, env, 0x1f9d55, 3.4, 19, world.N * 0.15),
-  new TrafficCar(scene, world, low, env, 0xef4444, -3.4, 17, world.N * 0.32),
-  new TrafficCar(scene, world, low, env, 0xf59e0b, 3.8, 21, world.N * 0.50),
-  new TrafficCar(scene, world, low, env, 0x8b5cf6, -3.8, 16, world.N * 0.68),
-  new TrafficCar(scene, world, low, env, 0x06b6d4, 3.2, 18, world.N * 0.82),
-  new TrafficCar(scene, world, low, env, 0xf97316, -3.2, 20, world.N * 0.94)
+  new TrafficCar(scene, world, low, env, 0x1f9d55, 3.2, 17, 14),
+  new TrafficCar(scene, world, low, env, 0xef4444, -3.2, 15, 28),
+  new TrafficCar(scene, world, low, env, 0xf59e0b, 3.4, 19, 46),
+  new TrafficCar(scene, world, low, env, 0x8b5cf6, -3.4, 16, 68),
+  new TrafficCar(scene, world, low, env, 0x06b6d4, 3.1, 18, 92),
+  new TrafficCar(scene, world, low, env, 0xf97316, -3.1, 17, 118)
 ];
-const police = new PoliceCar(scene, world, low, env, 0, 24);
+const police = new PoliceCar(scene, world, low, env, 0, 25);
 const helicopter = new Helicopter(scene, world, low);
-improveNpcLooks({ police, helicopter });
-// Start the patrol nearby so the pursuit is visible immediately rather than several minutes into a lap.
-police.t = (world.N - 18 + world.N) % world.N;
+// Spawn the patrol just ahead of the player so it is in the initial forward camera view.
+police.t = 10;
 police.reset();
+helicopter.reset(car);
 
 let paused = true, snapCam = true;
 function resize() {
@@ -80,7 +81,7 @@ addEventListener('resize', resize); resize();
 
 function resetNpcs() {
   trafficCars.forEach((npc) => npc.reset());
-  police.t = (world.N - 18 + world.N) % world.N;
+  police.t = 10;
   police.reset();
   helicopter.reset(car);
 }
