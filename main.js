@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { createWorld } from './world.js';
 import { Car, TrafficCar, PoliceCar, Helicopter } from './car.js';
+import { improveNpcLooks } from './npc-visuals.js';
 import { Controls } from './controls.js';
 
 const $ = (id) => document.getElementById(id);
@@ -10,7 +11,7 @@ const renderer = new THREE.WebGLRenderer({ canvas: $('c'), antialias: !low, powe
 let pixelRatio = Math.min(devicePixelRatio, low ? 1.25 : 2);
 renderer.setPixelRatio(pixelRatio);
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.15;
+renderer.toneMappingExposure = 1.05;
 renderer.shadowMap.enabled = !low;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
@@ -38,11 +39,11 @@ const sky = makeSky();
 scene.background = sky;
 let env = null;
 try { const pm = new THREE.PMREMGenerator(renderer); env = pm.fromEquirectangular(sky).texture; pm.dispose(); } catch (e) { console.warn('env map unavailable', e); }
-scene.fog = new THREE.Fog(0xe4eef2, low ? 50 : 90, low ? 330 : 620);
+scene.fog = new THREE.Fog(0xd3e0e6, low ? 65 : 115, low ? 380 : 720);
 
-const camera = new THREE.PerspectiveCamera(60, 1, 0.5, 1700);
-scene.add(new THREE.HemisphereLight(0xdfeeff, 0x4a5a35, 1.2));
-const sun = new THREE.DirectionalLight(0xfff1d6, 2.9);
+const camera = new THREE.PerspectiveCamera(62, 1, 0.5, 1700);
+scene.add(new THREE.HemisphereLight(0xdfeeff, 0x4a5a35, 1.0));
+const sun = new THREE.DirectionalLight(0xfff1d6, 2.5);
 sun.castShadow = !low;
 if (!low) {
   sun.shadow.mapSize.set(2048, 2048);
@@ -65,6 +66,10 @@ const trafficCars = [
 ];
 const police = new PoliceCar(scene, world, low, env, 0, 24);
 const helicopter = new Helicopter(scene, world, low);
+improveNpcLooks({ police, helicopter });
+// Start the patrol nearby so the pursuit is visible immediately rather than several minutes into a lap.
+police.t = (world.N - 18 + world.N) % world.N;
+police.reset();
 
 let paused = true, snapCam = true;
 function resize() {
@@ -75,8 +80,9 @@ addEventListener('resize', resize); resize();
 
 function resetNpcs() {
   trafficCars.forEach((npc) => npc.reset());
+  police.t = (world.N - 18 + world.N) % world.N;
   police.reset();
-  helicopter.reset();
+  helicopter.reset(car);
 }
 function setPaused(p) {
   paused = p; $('menu').classList.toggle('hidden', !p);
@@ -94,18 +100,18 @@ document.addEventListener('visibilitychange', () => { if (document.hidden) setPa
 
 let camH = 0; const camBase = new THREE.Vector3();
 function followCamera(dt, t) {
-  if (snapCam) { camH = car.h; }
-  camH += Math.atan2(Math.sin(car.h - camH), Math.cos(car.h - camH)) * (snapCam ? 1 : 1 - Math.exp(-4 * dt));
-  const sp = Math.min(car.kmh, 140), dist = 7.2 + sp * 0.012, hgt = 3.0 + sp * 0.006;
+  if (snapCam) camH = car.h;
+  camH += Math.atan2(Math.sin(car.h - camH), Math.cos(car.h - camH)) * (snapCam ? 1 : 1 - Math.exp(-3.2 * dt));
+  const sp = Math.min(car.kmh, 140), dist = 8.5 + sp * 0.018, hgt = 3.6 + sp * 0.008;
   const tx = car.x - Math.sin(camH) * dist, tz = car.z - Math.cos(camH) * dist, ty = car.y + hgt;
-  const k = snapCam ? 1 : 1 - Math.exp(-7 * dt);
+  const k = snapCam ? 1 : 1 - Math.exp(-5.5 * dt);
   camBase.x += (tx - camBase.x) * k; camBase.y += (ty - camBase.y) * k; camBase.z += (tz - camBase.z) * k;
   const floor = world.heightAt(camBase.x, camBase.z) + 1.5;
   if (camBase.y < floor) camBase.y = floor;
-  const amp = paused ? 0 : (sp / 140) * 0.03 + (car.offRoad ? 0.03 * Math.min(1, sp / 20) : 0);
-  camera.position.set(camBase.x + Math.sin(t * 37) * amp, camBase.y + Math.sin(t * 29 + 1) * amp, camBase.z + Math.cos(t * 31) * amp);
-  camera.lookAt(car.x + Math.sin(car.h) * 5, car.y + 1.3, car.z + Math.cos(car.h) * 5);
-  const fov = 60 + sp * 0.08;
+  const amp = paused ? 0 : (sp / 140) * 0.025 + (car.offRoad ? 0.025 * Math.min(1, sp / 20) : 0);
+  camera.position.set(camBase.x + Math.sin(t * 19) * amp, camBase.y + Math.sin(t * 13 + 1) * amp, camBase.z + Math.cos(t * 17) * amp);
+  camera.lookAt(car.x + Math.sin(car.h) * 6, car.y + 1.4, car.z + Math.cos(car.h) * 6);
+  const fov = 62 + sp * 0.07;
   if (Math.abs(fov - camera.fov) > 0.05) { camera.fov = fov; camera.updateProjectionMatrix(); }
   snapCam = false;
   sun.position.set(car.x + SUN_DIR.x * 100, car.y + SUN_DIR.y * 100, car.z + SUN_DIR.z * 100); sun.target.position.set(car.x, car.y, car.z);
